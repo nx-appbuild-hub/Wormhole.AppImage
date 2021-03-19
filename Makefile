@@ -11,48 +11,38 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 PWD:=$(shell pwd)
 
-all:
-	rm -rf $(PWD)/build
-	mkdir -p $(PWD)/build
-	mkdir -p $(PWD)/build/AppDir
+all: clean
 
-	wget --output-document=$(PWD)/build/build.rpm  http://mirror.centos.org/centos/8/AppStream/x86_64/os/Packages/python38-3.8.0-6.module_el8.2.0+317+61fa6e7d.x86_64.rpm
-	cd $(PWD)/build && rpm2cpio $(PWD)/build/build.rpm | cpio -idmv && cd ..
+	mkdir -p $(PWD)/build/Boilerplate.AppDir/application
+	mkdir -p $(PWD)/build/Boilerplate.AppDir/vendor
 
-	wget --output-document=$(PWD)/build/build.rpm  http://mirror.centos.org/centos/8/AppStream/x86_64/os/Packages/python38-devel-3.8.0-6.module_el8.2.0+317+61fa6e7d.x86_64.rpm
-	cd $(PWD)/build && rpm2cpio $(PWD)/build/build.rpm | cpio -idmv && cd ..
+	apprepo --destination=$(PWD)/build appdir boilerplate python3.8 python3.8-dev python3.8-psutil \
+										python3.8-setuptools python3-pip python3-dnf python3-apt \
+										openssl libffi7 intltool libgudev-1.0-0 libffi libgudev
 
-	wget --output-document=$(PWD)/build/build.rpm  http://mirror.centos.org/centos/8/AppStream/aarch64/os/Packages/python38-pip-19.2.3-5.module_el8.2.0+317+61fa6e7d.noarch.rpm
-	cd $(PWD)/build && rpm2cpio $(PWD)/build/build.rpm | cpio -idmv && cd ..
 
-	wget --output-document=$(PWD)/build/build.rpm  http://mirror.centos.org/centos/8/AppStream/x86_64/os/Packages/python38-setuptools-41.6.0-4.module_el8.2.0+317+61fa6e7d.noarch.rpm
-	cd $(PWD)/build && rpm2cpio $(PWD)/build/build.rpm | cpio -idmv && cd ..
+	echo 'case "$${1}" in' 														>> $(PWD)/build/Boilerplate.AppDir/AppRun
+	echo "  '--python') exec \$${APPDIR}/bin/python3.8 \$${*:2} ;;" 			>> $(PWD)/build/Boilerplate.AppDir/AppRun
+	echo '  *)   $${APPDIR}/bin/python3.8  -m wormhole $${@} ;;' 				>> $(PWD)/build/Boilerplate.AppDir/AppRun
+	echo 'esac' 																>> $(PWD)/build/Boilerplate.AppDir/AppRun
 
-	wget --output-document=$(PWD)/build/build.rpm  http://mirror.centos.org/centos/8/AppStream/x86_64/os/Packages/python38-libs-3.8.0-6.module_el8.2.0+317+61fa6e7d.x86_64.rpm
-	cd $(PWD)/build && rpm2cpio $(PWD)/build/build.rpm | cpio -idmv && cd ..
 
-	wget --output-document=$(PWD)/build/build.rpm  http://mirror.centos.org/centos/8/BaseOS/x86_64/os/Packages/openssl-libs-1.1.1c-15.el8.x86_64.rpm
-	cd $(PWD)/build && rpm2cpio $(PWD)/build/build.rpm | cpio -idmv && cd ..
+	sed -i 's/#APPDIR=`pwd`/APPDIR=`dirname \$${0}`/' $(PWD)/build/Boilerplate.AppDir/AppRun
+	$(PWD)/build/Boilerplate.AppDir/AppRun --python -m pip install  -r $(PWD)/requirements.txt --target=$(PWD)/build/Boilerplate.AppDir/vendor --upgrade
+	$(PWD)/build/Boilerplate.AppDir/AppRun --python -m pip uninstall typing -y
+	sed -i 's/APPDIR=`dirname \$${0}`/#APPDIR=`dirname \$${0}`/' $(PWD)/build/Boilerplate.AppDir/AppRun
 
-	wget --output-document=$(PWD)/build/build.rpm  http://mirror.centos.org/centos/7/os/x86_64/Packages/libffi-3.0.13-19.el7.x86_64.rpm
-	cd $(PWD)/build && rpm2cpio $(PWD)/build/build.rpm | cpio -idmv && cd ..
 
-	mkdir -p $(PWD)/build/AppDir/python
-	cp -r $(PWD)/build/usr/* $(PWD)/build/AppDir/python
+	rm -f $(PWD)/build/Boilerplate.AppDir/*.png 		|| true
+	rm -f $(PWD)/build/Boilerplate.AppDir/*.desktop 	|| true
+	rm -f $(PWD)/build/Boilerplate.AppDir/*.svg 		|| true	
 
-	cp --force $(PWD)/AppDir/AppRun $(PWD)/build/AppDir/AppRun
-	chmod +x $(PWD)/build/AppDir/AppRun
+	cp --force $(PWD)/AppDir/*.svg 		$(PWD)/build/Boilerplate.AppDir 			|| true	
+	cp --force $(PWD)/AppDir/*.desktop 	$(PWD)/build/Boilerplate.AppDir 			|| true	
+	cp --force $(PWD)/AppDir/*.png 		$(PWD)/build/Boilerplate.AppDir 			|| true	
 
-	mkdir -p $(PWD)/build/AppDir/vendor
-	$(PWD)/build/AppDir/AppRun --python -m pip install  -r $(PWD)/requirements.txt --target=$(PWD)/build/AppDir/vendor --upgrade
-	$(PWD)/build/AppDir/AppRun --python -m pip uninstall typing -y
-
-	cp --force $(PWD)/AppDir/Wormhole.desktop $(PWD)/build/AppDir/
-	cp --force $(PWD)/AppDir/wormhole.png $(PWD)/build/AppDir/
-
-	export ARCH=x86_64 && $(PWD)/bin/appimagetool-x86_64.AppImage  $(PWD)/build/AppDir $(PWD)/Wormhole.AppImage
-	@echo "done: Wormhole.AppImage"
-	make clean
+	export ARCH=x86_64 && $(PWD)/bin/appimagetool.AppImage  $(PWD)/build/Boilerplate.AppDir $(PWD)/Wormhole.AppImage
+	chmod +x $(PWD)/Wormhole.AppImage
 
 
 clean:
